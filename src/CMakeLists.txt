@@ -21,4 +21,5 @@ target_link_libraries(
         spdlog::spdlog
         perfkit::core
         cppcrow
+        perfkit::_internal::net-provider-protocols
 )
