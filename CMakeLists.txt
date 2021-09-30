@@ -7,18 +7,22 @@ find_package(ZLIB)
 find_package(OpenSSL)
 find_package(spdlog CONFIG REQUIRED)
 
-set(perfkit_BUILD_NET_CLIENT OFF)
+set(perfkit_BUILD_NET_CLIENT ON)
 set(perfkit_BUILD_CLI OFF)
 add_subdirectory(third/perfkit EXCLUDE_FROM_ALL)
+
+add_library(cppcrow INTERFACE)
+target_include_directories(cppcrow INTERFACE third/crow/include/)
+target_compile_features(cppcrow INTERFACE cxx_std_17)
 
 # ============== CONFIGURE BUILD TYPE
 if (NOT CMAKE_BUILD_TYPE)
     message(STATUS "No build type selected, default to Release")
     set(CMAKE_BUILD_TYPE "Release")
-endif()
+endif ()
 
 # ============== CONFIGURE OPENSSL
-if(OPENSSL_FOUND)
+if (OPENSSL_FOUND)
     include_directories(${OPENSSL_INCLUDE_DIR})
 endif()
 
@@ -30,5 +34,5 @@ else()
     find_package( Boost 1.70 COMPONENTS system thread REQUIRED )
 endif()
 
-# ============== ADD TARGET
+# ============== ADD TARGETS
 add_subdirectory(src)

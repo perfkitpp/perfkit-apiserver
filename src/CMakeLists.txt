@@ -3,6 +3,7 @@ add_executable(
         main.cpp
         session.cpp
         session.hpp
+        crow_body.cpp
 )
 
 # ============== CONFIGURE TARGET
@@ -19,4 +20,5 @@ target_link_libraries(
         pthread
         spdlog::spdlog
         perfkit::core
+        cppcrow
 )
