@@ -69,28 +69,25 @@ Login to API server. It'll return an auth token.
 
 ```json
 {
-  "configs": {
-    "category-1": {
-      "type": "category",
-      "category-2": {
-        "type": "category",
-        "config-1": {
-          "hash": 13948171,
-          "type": "int",
-          "value": 1331,
-          "description": "some var",
-          "attribute": {
-            "min": 0,
-            "one-of": [
-              1,
-              2,
-              14,
-              1331
-            ]
+  "category-root": {
+    "name": "root",
+    "categories": [
+      {
+        "name": "sub1",
+        "categories": [
+          {
+            "name": "entity1",
+            "type": "string|object|number_int|number_float|array|object",
+            "description": "description of this entity",
+            "attribute": {
+              "min": "some-minimal-value",
+              "one-of": "some-table-entities",
+              "max": "some-max-value"
+            }
           }
-        }
+        ]
       }
-    }
+    ]
   }
 }
 ```
@@ -106,6 +103,8 @@ Target can be an object.
 ```
 
 ### `GET /config/patch/<session>/<last-sequence-id>`
+
+- Updates: `[[HASH, VALUE], [...]]`
 
 ```json
 {
