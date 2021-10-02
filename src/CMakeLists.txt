@@ -1,9 +1,9 @@
 add_executable(
         ${PROJECT_NAME}
         main.cpp
-        session.cpp
-        session.hpp
         crow_body.cpp
+        middlewares/auth.cpp
+        middlewares/auth.hpp
 )
 
 # ============== CONFIGURE TARGET
