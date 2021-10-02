@@ -20,6 +20,7 @@ target_link_libraries(
         pthread
         spdlog::spdlog
         perfkit::core
+        perfkit::net-provider
         cppcrow
         perfkit::_internal::net-provider-protocols
 )
