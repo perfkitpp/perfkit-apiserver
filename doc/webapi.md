@@ -32,7 +32,8 @@ Login to API server. It'll return an auth token.
     "some-session-id": {
       "ip": "192.168.2.2",
       "pid": "31119",
-      "host-name": "DESKTOP-3GX199S",
+      "machine-name": "DESKTOP-3GX199S",
+      "epoch": 101231411,  
       "require-auth": false,
       "description": "some description"
     },
@@ -49,18 +50,25 @@ Login to API server. It'll return an auth token.
 
 ```json
 {
-  "begin": 131,
-  "end": 114511,
+  "begin": "integer; character index begin",
+  "end": "integer; character index end",
   "content": "string contents ...."
 }
 ```
 
 ### `POST /shell/<session>`
 
-- Response
+```json
+{
+  "is_invoke": "bool; if set false, request suggest",
+  "content": "string; user input"
+}
+```
 
 ```json
-
+{
+  "suggested": "?string; only valid if is_invoke==false"
+}
 ```
 
 ### `GET /config/all/<session>`
