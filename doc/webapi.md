@@ -29,7 +29,7 @@ Login to API server. It'll return an auth token.
 ```json
 {
   "sessions": {
-    "some-session-id": {
+    "some-net_session-id": {
       "ip": "192.168.2.2",
       "pid": "31119",
       "machine-name": "DESKTOP-3GX199S",
@@ -37,14 +37,14 @@ Login to API server. It'll return an auth token.
       "require-auth": false,
       "description": "some description"
     },
-    "some-other-session": {
+    "some-other-net_session": {
       "...": null
     }
   }
 }
 ```
 
-### `GET /shell/<session>/<sequence>`
+### `GET /shell/<net_session>/<sequence>`
 
 - Response
 
@@ -56,7 +56,7 @@ Login to API server. It'll return an auth token.
 }
 ```
 
-### `POST /shell/<session>`
+### `POST /shell/<net_session>`
 
 ```json
 {
@@ -71,7 +71,7 @@ Login to API server. It'll return an auth token.
 }
 ```
 
-### `GET /config/all/<session>`
+### `GET /config/all/<net_session>`
 
 - Response
 
@@ -100,7 +100,7 @@ Login to API server. It'll return an auth token.
 }
 ```
 
-### `PATCH /config/<session>/<hash>`
+### `PATCH /config/<net_session>/<hash>`
 
 Target can be an object.
 
@@ -110,7 +110,7 @@ Target can be an object.
 }
 ```
 
-### `GET /config/patch/<session>/<last-sequence-id>`
+### `GET /config/patch/<net_session>/<last-sequence-id>`
 
 - Updates: `[[HASH, VALUE], [...]]`
 
@@ -130,7 +130,7 @@ Target can be an object.
 }
 ```
 
-### `GET /trace/list/<session>`
+### `GET /trace/list/<net_session>`
 
 ```json
 {
@@ -143,7 +143,7 @@ Target can be an object.
 }
 ```
 
-### `GET /trace/<session>/<group>/<last-sequence-id>`
+### `GET /trace/<net_session>/<group>/<last-sequence-id>`
 
 `GET /trace/example/list-name-1/1658`
 
@@ -174,7 +174,7 @@ Target can be an object.
 }
 ```
 
-### `PUT /trace/<session>/<hash>`
+### `PUT /trace/<net_session>/<hash>`
 
 ```json
 {
@@ -183,13 +183,13 @@ Target can be an object.
 }
 ```
 
-### `GET /trace-image/<session>/<hash>`
+### `GET /trace-image/<net_session>/<hash>`
 
 ```json
 "base64-jpeg-data"
 ```
 
-### `PUT /trace-image-interaction/<session>/<hash>`
+### `PUT /trace-image-interaction/<net_session>/<hash>`
 
 Order is `[TYPE, VALUE]`
 
