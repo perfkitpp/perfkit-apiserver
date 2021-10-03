@@ -143,7 +143,7 @@ Target can be an object.
 }
 ```
 
-### `GET /trace/<net_session>/<group>/<last-sequence-id>`
+### `GET /trace/<net_session>/<group-id>/<last-sequence-id>`
 
 `GET /trace/example/list-name-1/1658`
 
