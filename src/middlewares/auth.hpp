@@ -5,7 +5,6 @@
 #pragma once
 #include <crow/http_request.h>
 #include <crow/http_response.h>
-#include <spdlog/spdlog.h>
 
 namespace middleware {
 class auth {
@@ -13,23 +12,13 @@ class auth {
   using response = crow::response;
 
  public:
+  auth();
+
+ public:
   struct context {
   };
 
-  void before_handle(request& req, response& res, context&) {
-    spdlog::info(
-            "middleware called: \n"
-            "\turl: {}\n"
-            "\turl_raw: {}\n"
-            "\tbody: {}\n",
-            req.url, req.raw_url, req.body);
-
-    // TODO: Implement authentication
-    //  If URL is not "/login", try authenticate with "auth" header,
-    //   then reject if target is not properly authenticated.
-    //  There will be some other operations which require administrative privileges, and those
-    //   operations should be handled inside this middleware either.
-  }
+  void before_handle(request& req, response& res, context&);
 
   void after_handle(request& /*req*/, response& res, context& /*ctx*/) {}
 };

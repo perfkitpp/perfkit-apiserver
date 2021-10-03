@@ -4,7 +4,7 @@ add_executable(
         crow_body.cpp
         middlewares/auth.cpp
         middlewares/auth.hpp
-)
+        app.cpp app.hpp session/session.cpp session/session.hpp)
 
 # ============== CONFIGURE TARGET
 target_include_directories(
@@ -23,4 +23,5 @@ target_link_libraries(
         perfkit::net-provider
         cppcrow
         perfkit::_internal::net-provider-protocols
+        range-v3::range-v3
 )
