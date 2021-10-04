@@ -113,6 +113,3 @@ void apiserver::session::_handle_register() {
   _desc  = std::move(info->description);
 }
 
-std::string apiserver::session::epoch() const {
-  return epoch_to_string(_epoch);
-}

@@ -21,6 +21,7 @@ target_link_libraries(
         spdlog::spdlog
         perfkit::core
         perfkit::net-provider
+        perfkit::cli
         cppcrow
         perfkit::_internal::net-provider-protocols
         range-v3::range-v3

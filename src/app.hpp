@@ -4,6 +4,7 @@
 
 #pragma once
 #include <memory>
+#include <mutex>
 #include <string>
 #include <string_view>
 #include <thread>
@@ -37,7 +38,11 @@ class app {
   void _worker_fn();
 
  private:
+  mutable std::mutex _session_lock;
   std::vector<std::unique_ptr<session>> _sessions;
+
+  int64_t _id_gen = 0;
+
   socket_ty _sock_srv;
 
   std::atomic_flag _active{true};

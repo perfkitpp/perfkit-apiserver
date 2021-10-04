@@ -8,7 +8,7 @@ find_package(OpenSSL)
 find_package(spdlog CONFIG REQUIRED)
 
 set(perfkit_BUILD_NET_CLIENT ON)
-set(perfkit_BUILD_CLI OFF)
+set(perfkit_BUILD_CLI ON)
 add_subdirectory(third/perfkit EXCLUDE_FROM_ALL)
 
 add_library(cppcrow INTERFACE)

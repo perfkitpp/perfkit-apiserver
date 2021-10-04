@@ -1,5 +1,9 @@
+#include <atomic>
+
 #include <crow/app.h>
 #include <perfkit/configs.h>
+#include <perfkit/detail/commands.hpp>
+#include <perfkit/extension/cli.hpp>
 #include <perfkit/extension/net-provider.hpp>
 #include <spdlog/spdlog.h>
 
@@ -20,9 +24,14 @@ PERFKIT_CATEGORY(provider) {
 
 int main(int argc, char** argv) {
   perfkit::configs::parse_args(&argc, &argv, true);
-
+  crow::App<middleware::auth> app;
+  std::unique_ptr<apiserver::app> srv_app;
   perfkit::terminal_ptr term;
-  {
+  perfkit::terminal_ptr term_cli;
+  std::thread thrd_term_cli;
+  std::atomic_bool running{true};
+
+  {  // initialize net terminal, which will connect to itself.
     perfkit::terminal::net_provider::init_info term_init{"__SERVER__"};
     term_init.wait_connection = false;
     term_init.host_port       = *provider::bind_port;
@@ -32,37 +41,52 @@ int main(int argc, char** argv) {
     spdlog::default_logger()->sinks().push_back(term->sink());
     perfkit::terminal::register_logging_manip_command(term.get());
   }
-
-  std::unique_ptr<apiserver::app> instance;
-  {
+  {  // register terminal manipulation
+    term_cli = perfkit::terminal::create_cli();
+    perfkit::terminal::initialize_with_basic_commands(term_cli.get());
+    term_cli->commands()->root()->add_subcommand(
+            "quit", [&](auto&&) { return app.stop(), (running = false), true; });
+    thrd_term_cli = std::thread{
+            [&] {
+              while (running.load(std::memory_order_relaxed)) {
+                auto cmd = term_cli->fetch_command(1000ms);
+                if (not cmd || cmd->empty()) { continue; }
+                term_cli->commands()->invoke_command(*cmd);
+              }
+            }};
+  }
+  {  // initialize server app
     apiserver::app::init_arg init;
     init.bind_ip   = *provider::bind_ip;
     init.bind_port = *provider::bind_port;
 
-    instance = std::make_unique<apiserver::app>(init);
+    srv_app = std::make_unique<apiserver::app>(init);
   }
 
-  crow::App<middleware::auth> app;
   CROW_ROUTE(app, "/")
-  ([] {
+  ([&] {
     return "hell, world!";
   });
 
   CROW_ROUTE(app, "/login")
-  ([] {
+  ([&] {
     // TODO
     std::this_thread::sleep_for(5s);
     return "trying login";
   });
 
   CROW_ROUTE(app, "/sessions")
-  ([] {
-    // TODO
-    return "enumerating sessions";
+  ([&] {
+    return srv_app->list_sessions();
   });
 
   app.port(apiserver::bind_port.value())
           .bindaddr(apiserver::bind_ip.value())
           .multithreaded()
           .run();
+
+  running.store(false);
+  if (thrd_term_cli.joinable()) { thrd_term_cli.join(); }
+  srv_app.reset();
+  return 0;
 }

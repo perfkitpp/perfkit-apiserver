@@ -4,6 +4,7 @@
 
 #include "app.hpp"
 
+#include <nlohmann/json.hpp>
 #include <perfkit/common/format.hxx>
 #include <range/v3/view/drop.hpp>
 #include <range/v3/view/iota.hpp>
@@ -15,6 +16,7 @@
 #include <sys/socket.h>
 #include <sys/unistd.h>
 
+using std::lock_guard;
 using pollfd_ty = pollfd;
 #elif _WIN32
 #define _CRT_NONSTDC_NO_WARNINGS
@@ -72,6 +74,8 @@ void apiserver::app::_worker_fn() {
   }
 
   auto _close_session = [this, &_pollees](size_t sessidx) {
+    std::lock_guard _{_session_lock};
+
     auto fd = _pollees[sessidx + 1].fd;
     _pollees.erase(_pollees.begin() + sessidx + 1);
     _sessions.erase(_sessions.begin() + sessidx);
@@ -109,10 +113,14 @@ void apiserver::app::_worker_fn() {
         pollee->events = POLLIN;
 
         session::init_arg init;
-        init.write = [=](std::string_view s) {
-          ::send(sock, s.data(), s.size(), 0);
-        };
+        init.id = ++_id_gen;
+        init.ip = inet_ntoa(ipaddr.sin_addr);
+        init.write =
+                [=](std::string_view s) {
+                  ::send(sock, s.data(), s.size(), 0);
+                };
 
+        std::lock_guard _{_session_lock};
         _sessions.emplace_back(std::make_unique<session>(std::move(init)));
       }
     }
@@ -123,11 +131,13 @@ void apiserver::app::_worker_fn() {
       if (pfd->revents != 0) { n_poll--; }
       if (not(pfd->revents & POLLIN)) {
         if (errno == 0) { continue; }
-        SPDLOG_WARN(
-                "> session '{}' poll() returned error: ({}) {} ",
-                sess->name(), errno, strerror(errno));
-        SPDLOG_WARN(
-                "| Disconnecting ...");
+        SPDLOG_WARN("> session '{}' poll() error: ({}) {} ", sess->name(), errno, strerror(errno));
+        SPDLOG_WARN("| Disconnecting ...");
+        _close_session(idx--);
+        continue;
+      }
+      if (not sess->is_valid_state()) {
+        SPDLOG_WARN("> session '{}' is not in valid state. disconnecting ...", sess->name());
         _close_session(idx--);
         continue;
       }
@@ -142,9 +152,28 @@ void apiserver::app::_worker_fn() {
 
       sess->handle_recv({_buf.get(), (size_t)n_read});
       pfd->revents = {};
-      std::this_thread::sleep_for(100ms);
     }
   }
 
   SPDLOG_INFO("worker thread shutting down ...");
+}
+
+std::string apiserver::app::list_sessions() const {
+  nlohmann::json js;
+  auto list = &js["sessions"];
+
+  {
+    lock_guard _{_session_lock};
+    for (const auto& ptr : _sessions) {
+      auto elem = &(*list)[std::to_string(ptr->id())];
+      elem->emplace("ip", ptr->ip());
+      elem->emplace("pid", ptr->pid());
+      elem->emplace("machine-name", ptr->host());
+      elem->emplace("name", ptr->name());
+      elem->emplace("epoch", ptr->epoch());
+      elem->emplace("description", ptr->description());
+    }
+  }
+
+  return js.dump();
 }

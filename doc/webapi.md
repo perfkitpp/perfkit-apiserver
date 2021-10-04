@@ -29,15 +29,15 @@ Login to API server. It'll return an auth token.
 ```json
 {
   "sessions": {
-    "some-net_session-id": {
-      "ip": "192.168.2.2",
-      "pid": "31119",
-      "machine-name": "DESKTOP-3GX199S",
-      "epoch": 101231411,  
-      "require-auth": false,
-      "description": "some description"
+    "session-id(integer string)": {
+      "name": "string; session name",
+      "ip": "string; ip address in string",
+      "pid": "int; process id",
+      "machine-name": "string; e.g. DESKTOP-3GX199S",
+      "epoch": "int; epoch in milliseconds",
+      "description": "string; description"
     },
-    "some-other-net_session": {
+    "other-session-id": {
       "...": null
     }
   }
