@@ -32,7 +32,7 @@ class app {
 
  public:
   std::string list_sessions() const;
-  std::string fetch_shell_output(std::string_view session, int64_t sequence);
+  std::string fetch_shell_output(int64_t session, int64_t sequence);
 
  private:
   void _worker_fn();

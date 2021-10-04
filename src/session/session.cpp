@@ -70,6 +70,7 @@ void apiserver::session::_handle_header() {
   _state_proc = [&]() -> decltype(_state_proc) {
     switch (head.type.session) {
       case _net::provider_message::register_session: return [&] { _handle_register(); };
+      case _net::provider_message::shell_flush: return [&] { _handle_shell_fetch(); };
       case _net::provider_message::heartbeat: return [] { throw std::bad_function_call{}; };
 
       default:
@@ -77,7 +78,6 @@ void apiserver::session::_handle_header() {
       case _net::provider_message::config_update:
       case _net::provider_message::trace_groups:
       case _net::provider_message::trace_image:
-      case _net::provider_message::shell_flush:
       case _net::provider_message::shell_suggest:
       case _net::provider_message::invalid:
         SPDLOG_WARN("{}@{}: handler not implemented", name(), host());
@@ -117,4 +117,66 @@ void apiserver::session::heartbeat() {
   SPDLOG_TRACE("{}@{}: sent heartbeat", name(), host());
   lock_guard _{_write_lock};
   _data.write(_build_msg(_net::server_message::heartbeat, {}));
+}
+
+std::future<std::string> apiserver::session::fetch_shell(size_t req_seqn) {
+  // 1. register shell fetch handler callbacks
+  auto promise = std::make_shared<std::promise<std::string>>();
+
+  auto fn =  // async operation
+          [this, req_seqn, promise](size_t seqn, circular_queue<char> const& buffer) mutable {
+            SPDLOG_DEBUG("{}@{}: handling fetched shell message", name(), host());
+
+            auto seqn_actual = std::min(seqn, req_seqn);
+            auto n_send      = seqn - seqn_actual;
+            n_send           = std::min(n_send, buffer.size());
+
+            int64_t offset   = seqn - n_send;
+            int64_t sequence = seqn;
+            std::string content{buffer.end() - n_send, buffer.end()};
+
+            nlohmann::json builder;
+            builder.emplace("offset", offset);
+            builder.emplace("sequence", sequence);
+            builder.emplace("content", std::move(content));
+
+            promise->set_value(builder.dump());
+          };
+
+  // TODO: further optimizations ... if request interval is too short, send previous data again
+
+  {
+    std::lock_guard _{_shell_lock};
+    _shell_fetch_callbacks.emplace_back(std::move(fn));
+  }
+
+  // 2. send shell fetch request
+  {
+    SPDLOG_DEBUG("{}@{}: sent shell fetch message", name(), host());
+    lock_guard _{_write_lock};
+    _data.write(_build_msg(_net::server_message::shell_fetch, {}));
+  }
+
+  return promise->get_future();
+}
+
+void apiserver::session::_handle_shell_fetch() {
+  // 1. retrieve message
+  // 2. update sequence & shell output buffer
+  // 3. iterate and call all fetch callbacks
+  auto message = _retrieve<_net::shell_flush_chunk>();
+  if (not message) { return; }
+
+  _shell_output_seqn = message->sequence;
+  std::copy(message->data.begin(), message->data.end(), std::back_inserter(_shell_output));
+
+  decltype(_shell_fetch_callbacks) callbacks;
+  {
+    std::lock_guard _{_shell_lock};
+    callbacks = std::move(_shell_fetch_callbacks);
+  }
+
+  for (const auto& cb : callbacks) {
+    cb(_shell_output_seqn, _shell_output);
+  }
 }

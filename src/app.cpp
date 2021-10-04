@@ -4,6 +4,8 @@
 
 #include "app.hpp"
 
+#include <future>
+
 #include <nlohmann/json.hpp>
 #include <perfkit/common/format.hxx>
 #include <range/v3/view/drop.hpp>
@@ -12,6 +14,8 @@
 #include <spdlog/stopwatch.h>
 
 #if __linux__ || __unix__
+#include <future>
+
 #include <arpa/inet.h>
 #include <sys/poll.h>
 #include <sys/socket.h>
@@ -144,7 +148,6 @@ void apiserver::app::_worker_fn() {
         continue;
       }
 
-      SPDLOG_INFO("RPOLL: {:x}", pfd->revents);
       auto n_read = ::recv(pfd->fd, _buf.get(), RECV_BUFLEN, 0);
       if (n_read <= 0) {
         SPDLOG_WARN("EOF received: [fd {}] ({}) {}", pfd->fd, errno, strerror(errno));
@@ -185,4 +188,23 @@ std::string apiserver::app::list_sessions() const {
   }
 
   return js.dump();
+}
+
+std::string apiserver::app::fetch_shell_output(int64_t session, int64_t sequence) {
+  std::future<std::string> result;
+  {
+    lock_guard _{_session_lock};
+    auto it = std::find_if(_sessions.begin(), _sessions.end(),
+                           [&](auto&& s) { return s->id() == session; });
+
+    if (it == _sessions.end()) { return {}; }
+    result = (**it).fetch_shell(sequence);
+  }
+
+  if (result.wait_for(2s) == std::future_status::timeout) {
+    SPDLOG_WARN("[session {}] fetch shell output failed: timeout", session);
+    return {};
+  }
+
+  return result.get();
 }

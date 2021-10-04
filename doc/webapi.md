@@ -50,8 +50,8 @@ Login to API server. It'll return an auth token.
 
 ```json
 {
-  "begin": "integer; character index begin",
-  "end": "integer; character index end",
+  "offset": "integer; sequence index offset",
+  "sequence": "integer; latest sequence index",
   "content": "string contents ...."
 }
 ```

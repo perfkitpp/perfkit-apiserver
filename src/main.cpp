@@ -82,6 +82,11 @@ int main(int argc, char** argv) {
     return srv_app->list_sessions();
   });
 
+  CROW_ROUTE(app, "/shell/<int>/<int>")
+  ([&](int64_t sess_id, int64_t seqn) {
+    return srv_app->fetch_shell_output(sess_id, seqn);
+  });
+
   app.port(apiserver::bind_port.value())
           .bindaddr(apiserver::bind_ip.value())
           .multithreaded()

@@ -6,10 +6,13 @@
 #include <cstddef>
 #include <cstdint>
 #include <functional>
+#include <future>
+#include <list>
 #include <mutex>
 
 #include <perfkit/_net/net-proto.hpp>
 #include <perfkit/common/array_view.hxx>
+#include <perfkit/common/circular_queue.hxx>
 
 namespace apiserver {
 
@@ -35,16 +38,19 @@ class session {
   int64_t pid() const { return _pid; }
 
   void heartbeat();
+  std::future<std::string> fetch_shell(size_t req_seqn);
 
   void handle_recv(perfkit::array_view<char> buf);
 
  private:
   void _handle_header();
   void _handle_register();
+  void _handle_shell_fetch();
 
   template <typename Ty_>
   std::optional<Ty_> _retrieve();
 
+ private:
  private:
   bool _is_valid = true;
 
@@ -66,6 +72,15 @@ class session {
   std::mutex _write_lock;
 
   // -- shell management
+  std::mutex _shell_lock;
+  size_t _shell_output_seqn = 0;
+  perfkit::circular_queue<char> _shell_output{4 * 1024 * 1024 - 1};
+
+  using shell_handler_queue = std::list<
+          std::function<void(size_t, perfkit::circular_queue<char> const&)>>;
+  shell_handler_queue _shell_fetch_callbacks;
+
+  // --
 };
 
 }  // namespace apiserver

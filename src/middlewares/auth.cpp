@@ -8,10 +8,10 @@
 
 void middleware::auth::before_handle(middleware::auth::request &req, middleware::auth::response &res, middleware::auth::context &) {
   spdlog::info(
-          "middleware called: \n"
-          "\turl: {}\n"
-          "\turl_raw: {}\n"
-          "\tbody: {}\n",
+          "middleware called: \r\n"
+          "\turl: {}\r\n"
+          "\turl_raw: {}\r\n"
+          "\tbody: {}\r\n",
           req.url, req.raw_url, req.body);
 
   // TODO: Implement authentication
