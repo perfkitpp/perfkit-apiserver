@@ -88,5 +88,6 @@ int main(int argc, char** argv) {
   running.store(false);
   if (thrd_term_cli.joinable()) { thrd_term_cli.join(); }
   srv_app.reset();
+
   return 0;
 }
