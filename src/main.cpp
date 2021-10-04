@@ -63,6 +63,8 @@ int main(int argc, char** argv) {
     srv_app = std::make_unique<apiserver::app>(init);
   }
 
+  spdlog::set_level(spdlog::level::trace);
+
   CROW_ROUTE(app, "/")
   ([&] {
     return "hell, world!";

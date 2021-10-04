@@ -6,7 +6,9 @@
 #include <cstddef>
 #include <cstdint>
 #include <functional>
+#include <mutex>
 
+#include <perfkit/_net/net-proto.hpp>
 #include <perfkit/common/array_view.hxx>
 
 namespace apiserver {
@@ -31,6 +33,8 @@ class session {
   std::string_view description() const { return _desc; }
   int64_t epoch() const { return _epoch; }
   int64_t pid() const { return _pid; }
+
+  void heartbeat();
 
   void handle_recv(perfkit::array_view<char> buf);
 
@@ -57,6 +61,9 @@ class session {
   std::string _receiving_payload;
 
   std::function<void()> _state_proc;
+
+  perfkit::_net::message_builder _build_msg;
+  std::mutex _write_lock;
 
   // -- shell management
 };

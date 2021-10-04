@@ -8,10 +8,11 @@
 #include <perfkit/common/format.hxx>
 #include <range/v3/view/drop.hpp>
 #include <range/v3/view/iota.hpp>
+#include <spdlog/spdlog.h>
+#include <spdlog/stopwatch.h>
 
 #if __linux__ || __unix__
 #include <arpa/inet.h>
-#include <spdlog/spdlog.h>
 #include <sys/poll.h>
 #include <sys/socket.h>
 #include <sys/unistd.h>
@@ -65,6 +66,7 @@ apiserver::app::~app() {
 void apiserver::app::_worker_fn() {
   enum { RECV_BUFLEN = 4096 };
   auto _buf = std::make_unique<char[]>(RECV_BUFLEN);
+  spdlog::stopwatch _timer_heartbeat;
 
   std::vector<::pollfd> _pollees;
   {
@@ -116,7 +118,7 @@ void apiserver::app::_worker_fn() {
         init.id = ++_id_gen;
         init.ip = inet_ntoa(ipaddr.sin_addr);
         init.write =
-                [=](std::string_view s) {
+                [=](std::string_view s) mutable {
                   ::send(sock, s.data(), s.size(), 0);
                 };
 
@@ -152,6 +154,13 @@ void apiserver::app::_worker_fn() {
 
       sess->handle_recv({_buf.get(), (size_t)n_read});
       pfd->revents = {};
+    }
+
+    if (_timer_heartbeat.elapsed() > 3s) {
+      _timer_heartbeat.reset();
+      for (const auto& sess : _sessions) {
+        sess->heartbeat();
+      }
     }
   }
 

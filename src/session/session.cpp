@@ -8,7 +8,7 @@
 #include <spdlog/spdlog.h>
 
 using namespace perfkit;
-using namespace ranges;
+using std::lock_guard;
 
 template <typename Ty_>
 std::optional<Ty_> apiserver::session::_retrieve() {
@@ -70,6 +70,7 @@ void apiserver::session::_handle_header() {
   _state_proc = [&]() -> decltype(_state_proc) {
     switch (head.type.session) {
       case _net::provider_message::register_session: return [&] { _handle_register(); };
+      case _net::provider_message::heartbeat: return [] { throw std::bad_function_call{}; };
 
       default:
       case _net::provider_message::config_all:
@@ -78,7 +79,6 @@ void apiserver::session::_handle_header() {
       case _net::provider_message::trace_image:
       case _net::provider_message::shell_flush:
       case _net::provider_message::shell_suggest:
-      case _net::provider_message::heartbeat:
       case _net::provider_message::invalid:
         SPDLOG_WARN("{}@{}: handler not implemented", name(), host());
         throw invalid_session_state{};
@@ -113,3 +113,8 @@ void apiserver::session::_handle_register() {
   _desc  = std::move(info->description);
 }
 
+void apiserver::session::heartbeat() {
+  SPDLOG_TRACE("{}@{}: sent heartbeat", name(), host());
+  lock_guard _{_write_lock};
+  _data.write(_build_msg(_net::server_message::heartbeat, {}));
+}
