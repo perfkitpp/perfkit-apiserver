@@ -33,9 +33,24 @@ class app {
  public:
   std::string list_sessions() const;
   std::string fetch_shell_output(int64_t session, int64_t sequence);
+  std::string post_shell_input(int64_t session, std::string body);
 
  private:
   void _worker_fn();
+
+  template <typename Fn_>
+  auto _session_critical_op(int64_t sess_id, Fn_&& fn) {
+    using namespace std::literals;
+
+    std::unique_lock lock{_session_lock};
+    auto it = std::find_if(
+            _sessions.begin(), _sessions.end(), [&](auto&& s) { return s->id() == sess_id; });
+
+    if (it == _sessions.end()) { return false; }
+
+    fn(it->get());
+    return true;
+  }
 
  private:
   mutable std::mutex _session_lock;

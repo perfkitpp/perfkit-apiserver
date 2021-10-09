@@ -192,14 +192,9 @@ std::string apiserver::app::list_sessions() const {
 
 std::string apiserver::app::fetch_shell_output(int64_t session, int64_t sequence) {
   std::future<std::string> result;
-  {
-    lock_guard _{_session_lock};
-    auto it = std::find_if(_sessions.begin(), _sessions.end(),
-                           [&](auto&& s) { return s->id() == session; });
-
-    if (it == _sessions.end()) { return {}; }
-    result = (**it).fetch_shell(sequence);
-  }
+  _session_critical_op(
+          session,
+          [&](class session* sess) { result = sess->fetch_shell(sequence); });
 
   if (result.wait_for(2s) == std::future_status::timeout) {
     SPDLOG_WARN("[session {}] fetch shell output failed: timeout", session);
@@ -207,4 +202,8 @@ std::string apiserver::app::fetch_shell_output(int64_t session, int64_t sequence
   }
 
   return result.get();
+}
+
+std::string apiserver::app::post_shell_input(int64_t session, std::string body) {
+  return "";
 }

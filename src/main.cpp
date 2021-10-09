@@ -87,6 +87,12 @@ int main(int argc, char** argv) {
     return srv_app->fetch_shell_output(sess_id, seqn);
   });
 
+  CROW_ROUTE(app, "/shell/<int>")
+          .methods(crow::HTTPMethod::POST)(
+                  [&](crow::request const& req, int64_t sess_id) {
+                    return srv_app->post_shell_input(sess_id, req.body);
+                  });
+
   app.port(apiserver::bind_port.value())
           .bindaddr(apiserver::bind_ip.value())
           .multithreaded()
