@@ -9,6 +9,7 @@ find_package(spdlog CONFIG REQUIRED)
 
 set(perfkit_BUILD_NET_CLIENT ON)
 set(perfkit_BUILD_CLI ON)
+set(perfkit_BUILD_EXAMPLES ON)
 add_subdirectory(third/perfkit EXCLUDE_FROM_ALL)
 
 add_library(cppcrow INTERFACE)
