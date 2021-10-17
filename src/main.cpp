@@ -13,13 +13,23 @@
 using namespace std::literals;
 
 PERFKIT_CATEGORY(apiserver) {
-  PERFKIT_CONFIGURE(bind_ip, "0.0.0.0").make_flag(true).confirm();
-  PERFKIT_CONFIGURE(bind_port, 15572).make_flag(true).confirm();
+  PERFKIT_CONFIGURE(bind_ip, "0.0.0.0")
+          .make_flag(true, "apiserver-bind-ip")
+          .confirm();
+
+  PERFKIT_CONFIGURE(bind_port, 15572)
+          .make_flag(true, "apiserver-bind-port")
+          .confirm();
 }
 
 PERFKIT_CATEGORY(provider) {
-  PERFKIT_CONFIGURE(bind_ip, "0.0.0.0").make_flag(true).confirm();
-  PERFKIT_CONFIGURE(bind_port, 25572).make_flag(true).confirm();
+  PERFKIT_CONFIGURE(bind_ip, "0.0.0.0")
+          .make_flag(true, "provider-bind-ip")
+          .confirm();
+
+  PERFKIT_CONFIGURE(bind_port, 25572)
+          .make_flag(true, "provider-bind-port")
+          .confirm();
 }
 
 int main(int argc, char** argv) {
@@ -68,6 +78,14 @@ int main(int argc, char** argv) {
   CROW_ROUTE(app, "/")
   ([&] {
     return "hell, world!";
+  });
+
+  CROW_ROUTE(app, "/ping")
+  ([] {
+    return std::to_string(
+            std::chrono::duration_cast<std::chrono::milliseconds>(
+                    std::chrono::system_clock::now().time_since_epoch())
+                    .count());
   });
 
   CROW_ROUTE(app, "/login")

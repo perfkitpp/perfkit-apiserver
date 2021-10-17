@@ -180,7 +180,7 @@ std::string apiserver::app::list_sessions() const {
       auto elem = &(*list)[std::to_string(ptr->id())];
       elem->emplace("ip", ptr->ip());
       elem->emplace("pid", ptr->pid());
-      elem->emplace("machine-name", ptr->host());
+      elem->emplace("machine_name", ptr->host());
       elem->emplace("name", ptr->name());
       elem->emplace("epoch", ptr->epoch());
       elem->emplace("description", ptr->description());

@@ -33,7 +33,7 @@ Login to API server. It'll return an auth token.
       "name": "string; session name",
       "ip": "string; ip address in string",
       "pid": "int; process id",
-      "machine-name": "string; e.g. DESKTOP-3GX199S",
+      "machine_name": "string; e.g. DESKTOP-3GX199S",
       "epoch": "int; epoch in milliseconds",
       "description": "string; description"
     },

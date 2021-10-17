@@ -24,3 +24,11 @@ void middleware::auth::before_handle(middleware::auth::request &req, middleware:
 middleware::auth::auth() {
   spdlog::info("middleware created");
 }
+
+void middleware::auth::after_handle(
+        middleware::auth::request &,
+        middleware::auth::response &res,
+        middleware::auth::context &) {
+  // Allow CORS
+  res.add_header("Access-Control-Allow-Origin", "*");
+}
