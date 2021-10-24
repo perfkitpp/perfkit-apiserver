@@ -48,7 +48,6 @@ int main(int argc, char** argv) {
     term_init.host_name       = "127.0.0.1";
 
     term = perfkit::terminal::net_provider::create(term_init);
-    spdlog::default_logger()->sinks().push_back(term->sink());
     perfkit::terminal::register_logging_manip_command(term.get());
   }
   {  // register terminal manipulation
