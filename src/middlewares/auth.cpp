@@ -7,7 +7,7 @@
 #include <spdlog/spdlog.h>
 
 void middleware::auth::before_handle(middleware::auth::request &req, middleware::auth::response &res, middleware::auth::context &) {
-  spdlog::info(
+  spdlog::trace(
           "middleware called: \r\n"
           "\turl: {}\r\n"
           "\turl_raw: {}\r\n"

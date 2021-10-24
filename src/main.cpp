@@ -73,7 +73,7 @@ int main(int argc, char** argv) {
     srv_app = std::make_unique<apiserver::app>(init);
   }
 
-  spdlog::set_level(spdlog::level::trace);
+  spdlog::set_level(spdlog::level::info);
 
   CROW_ROUTE(app, "/")
   ([&] {
@@ -110,6 +110,8 @@ int main(int argc, char** argv) {
                   [&](crow::request const& req, int64_t sess_id) {
                     return srv_app->post_shell_input(sess_id, req.body);
                   });
+
+  app.loglevel(crow::LogLevel::WARNING);
 
   app.port(apiserver::bind_port.value())
           .bindaddr(apiserver::bind_ip.value())
