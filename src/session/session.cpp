@@ -72,13 +72,13 @@ void apiserver::session::_handle_header() {
       case _net::provider_message::register_session: return [&] { _handle_register(); };
       case _net::provider_message::shell_flush: return [&] { _handle_shell_fetch(); };
       case _net::provider_message::heartbeat: return [] { throw std::bad_function_call{}; };
+      case _net::provider_message::shell_suggest: return [&] { _handle_shell_suggestion(); };
 
       default:
       case _net::provider_message::config_all:
       case _net::provider_message::config_update:
       case _net::provider_message::trace_groups:
       case _net::provider_message::trace_image:
-      case _net::provider_message::shell_suggest:
       case _net::provider_message::invalid:
         SPDLOG_WARN("{}@{}: handler not implemented", name(), host());
         throw invalid_session_state{};
@@ -146,7 +146,7 @@ std::future<std::string> apiserver::session::fetch_shell(size_t req_seqn) {
   // TODO: further optimizations ... if request interval is too short, send previous data again
 
   {
-    std::lock_guard _{_shell_lock};
+    std::lock_guard _{_oplock};
     _shell_fetch_callbacks.emplace_back(std::move(fn));
   }
 
@@ -165,18 +165,67 @@ void apiserver::session::_handle_shell_fetch() {
   // 2. update sequence & shell output buffer
   // 3. iterate and call all fetch callbacks
   auto message = _retrieve<_net::shell_flush_chunk>();
-  if (not message) { return; }
+  if (not message)
+    return;
 
   _shell_output_seqn = message->sequence;
   std::copy(message->data.begin(), message->data.end(), std::back_inserter(_shell_output));
 
   decltype(_shell_fetch_callbacks) callbacks;
   {
-    std::lock_guard _{_shell_lock};
+    std::lock_guard _{_oplock};
     callbacks = std::move(_shell_fetch_callbacks);
   }
 
   for (const auto& cb : callbacks) {
     cb(_shell_output_seqn, _shell_output);
+  }
+}
+
+std::future<std::string> apiserver::session::post_shell(const std::string& content, bool is_suggest) {
+  perfkit::_net::shell_input_line payload;
+  payload.content    = content;
+  payload.is_suggest = is_suggest;
+  payload.request_id = _req_id();
+
+  std::future<std::string> future;
+
+  if (is_suggest) {
+    std::lock_guard _{_oplock};
+    auto [it, is_new] = _shell_suggest_replies.try_emplace(payload.request_id);
+
+    if (not is_new)
+      throw std::logic_error{"generator never return same number"};
+
+    it->second.first = clock_type::now();
+    future           = it->second.second.get_future();
+  }
+
+  SPDLOG_DEBUG("{}@{}: sent shell input request (suggest: {})", name(), host(), is_suggest);
+  lock_guard{_write_lock},
+          _data.write(_build_msg(payload));
+
+  return future;
+}
+
+void apiserver::session::_handle_shell_suggestion() {
+  auto message = _retrieve<_net::shell_suggest_reply>();
+  if (not message)
+    return;
+
+  {
+    lock_guard _{_oplock};
+    auto it = _shell_suggest_replies.find(message->request_id);
+    if (it == _shell_suggest_replies.end()) {
+      SPDLOG_ERROR("LOGIC ERROR: unsent request {} received.", message->request_id);
+      return;
+    }
+
+    nlohmann::json builder;
+    builder["suggestion"] = std::move(message->content);
+    builder["candidates"] = message->suggest_words;
+
+    it->second.second.set_value(builder.dump());
+    _shell_suggest_replies.erase(it);
   }
 }

@@ -67,7 +67,10 @@ Login to API server. It'll return an auth token.
 
 ```json
 {
-  "suggested": "?string; only valid if is_invoke==false"
+  "suggestion": "?string; only valid if is_invoke==false",
+  "candidates": [
+    "?string; list of candidates ... only valid if is_invoke==false"
+  ]
 }
 ```
 

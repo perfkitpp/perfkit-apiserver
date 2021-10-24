@@ -24,6 +24,8 @@ class session {
     std::string ip;
   };
 
+  using clock_type = std::chrono::steady_clock;
+
   explicit session(init_arg init) : _data(std::move(init)) {}
 
  public:
@@ -39,6 +41,7 @@ class session {
 
   void heartbeat();
   std::future<std::string> fetch_shell(size_t req_seqn);
+  std::future<std::string> post_shell(std::string const& content, bool is_suggest);
 
   void handle_recv(perfkit::array_view<char> buf);
 
@@ -46,6 +49,9 @@ class session {
   void _handle_header();
   void _handle_register();
   void _handle_shell_fetch();
+  void _handle_shell_suggestion();
+
+  int64_t _req_id() { return ++_request_id_generator; }
 
   template <typename Ty_>
   std::optional<Ty_> _retrieve();
@@ -60,7 +66,10 @@ class session {
   int64_t _epoch    = 0;
   std::string _desc = "";
 
+  volatile int64_t _request_id_generator = 0;
+
   init_arg _data;
+  std::mutex _oplock;  // generic lock for overall critical operations
 
   // -- command handling
   size_t _size_pending_recv = {};
@@ -72,7 +81,6 @@ class session {
   std::mutex _write_lock;
 
   // -- shell management
-  std::mutex _shell_lock;
   size_t _shell_output_seqn = 0;
   perfkit::circular_queue<char> _shell_output{4 * 1024 * 1024 - 1};
 
@@ -81,6 +89,8 @@ class session {
   shell_handler_queue _shell_fetch_callbacks;
 
   // --
+  std::map<int64_t, std::pair<clock_type::time_point, std::promise<std::string>>>
+          _shell_suggest_replies;
 };
 
 }  // namespace apiserver

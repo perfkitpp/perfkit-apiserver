@@ -204,6 +204,29 @@ std::string apiserver::app::fetch_shell_output(int64_t session, int64_t sequence
   return result.get();
 }
 
-std::string apiserver::app::post_shell_input(int64_t session, std::string body) {
-  return "";
+std::string apiserver::app::post_shell_input(int64_t session, const std::string& body) {
+  auto json = nlohmann::json::parse(body, {}, false);
+
+  bool invalid = json.is_discarded();
+  invalid      = invalid || not json["is_invoke"].is_boolean();
+  invalid      = invalid || not json["content"].is_string();
+  if (invalid)
+    return "";
+
+  std::future<std::string> result;
+  _session_critical_op(
+          session,
+          [&](class session* sess) {
+            result = sess->post_shell(
+                    json["content"].get<std::string>(),
+                    not json["is_invoke"].get<bool>());
+          });
+
+  if (not result.valid())
+    return "";
+
+  if (result.wait_for(2s) == std::future_status::timeout)
+    return SPDLOG_WARN("[session {}] post shell timeout", session), "";
+
+  return result.get();
 }

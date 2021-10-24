@@ -58,9 +58,15 @@ int main(int argc, char** argv) {
     thrd_term_cli = std::thread{
             [&] {
               while (running.load(std::memory_order_relaxed)) {
-                auto cmd = term_cli->fetch_command(1000ms);
-                if (not cmd || cmd->empty()) { continue; }
-                term_cli->commands()->invoke_command(*cmd);
+                auto cmd = term_cli->fetch_command(10ms);
+                if (cmd && not cmd->empty())
+                  term_cli->commands()->invoke_command(*cmd);
+
+                cmd = term->fetch_command(10ms);
+                if (cmd && not cmd->empty()) {
+                  spdlog::info("command from network: {}", *cmd);
+                  term->commands()->invoke_command(*cmd);
+                }
               }
             }};
   }
