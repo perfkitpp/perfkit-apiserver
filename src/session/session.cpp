@@ -70,7 +70,7 @@ void apiserver::session::_handle_header() {
   _state_proc = [&]() -> decltype(_state_proc) {
     switch (head.type.session) {
       case _net::provider_message::register_session: return [&] { _handle_register(); };
-      case _net::provider_message::session_flush_reply: return [&] { _handle_shell_fetch(); };
+      case _net::provider_message::session_flush_reply: return [&] { _handle_session_fetch(); };
       case _net::provider_message::heartbeat: return [] { throw std::bad_function_call{}; };
       case _net::provider_message::shell_suggest: return [&] { _handle_shell_suggestion(); };
 
@@ -115,48 +115,33 @@ void apiserver::session::heartbeat() {
   _data.write(_build_msg(_net::server_message::heartbeat, {}));
 }
 
-std::future<std::string> apiserver::session::fetch_shell(size_t req_seqn) {
+std::string apiserver::session::fetch_shell(size_t req_seqn) {
   // 1. register shell fetch handler callbacks
-  auto promise = std::make_shared<std::promise<std::string>>();
+  SPDLOG_DEBUG("{}@{}: handling fetched shell message", name(), host());
+  auto locker{std::unique_lock{_shell_output_lock}};
 
-  auto fn =  // async operation
-          [this, req_seqn, promise](size_t seqn, circular_queue<char> const& buffer) mutable {
-            SPDLOG_DEBUG("{}@{}: handling fetched shell message", name(), host());
+  size_t seqn                           = _shell_output_seqn;
+  perfkit::circular_queue<char>& buffer = _shell_output;
 
-            auto seqn_actual = std::min(seqn, req_seqn);
-            auto n_send      = seqn - seqn_actual;
-            n_send           = std::min(n_send, buffer.size());
+  auto seqn_actual = std::min(seqn, req_seqn);
+  auto n_send      = seqn - seqn_actual;
+  n_send           = std::min(n_send, buffer.size());
 
-            int64_t offset   = seqn - n_send;
-            int64_t sequence = seqn;
-            std::string content{buffer.end() - n_send, buffer.end()};
+  int64_t offset   = seqn - n_send;
+  int64_t sequence = seqn;
+  std::string content{buffer.end() - n_send, buffer.end()};
 
-            nlohmann::json builder;
-            builder.emplace("offset", offset);
-            builder.emplace("sequence", sequence);
-            builder.emplace("content", std::move(content));
+  locker.unlock();
 
-            promise->set_value(builder.dump());
-          };
+  nlohmann::json builder;
+  builder.emplace("offset", offset);
+  builder.emplace("sequence", sequence);
+  builder.emplace("content", std::move(content));
 
-  // TODO: further optimizations ... if request interval is too short, send previous data again
-
-  {
-    std::lock_guard _{_oplock};
-    _shell_fetch_callbacks.emplace_back(std::move(fn));
-  }
-
-  // 2. send shell fetch request
-  {
-    SPDLOG_DEBUG("{}@{}: sent shell fetch message", name(), host());
-    lock_guard _{_write_lock};
-    _data.write(_build_msg(_net::server_message::shell_flush_request, {}));
-  }
-
-  return promise->get_future();
+  return builder.dump();
 }
 
-void apiserver::session::_handle_shell_fetch() {
+void apiserver::session::_handle_session_fetch() {
   // 1. retrieve message
   // 2. update sequence & shell output buffer
   // 3. iterate and call all fetch callbacks
@@ -164,18 +149,11 @@ void apiserver::session::_handle_shell_fetch() {
   if (not message)
     return;
 
-  _shell_output_seqn  = message->sequence;
-  auto& shell_content = message->shell_content;
-  std::copy(shell_content.begin(), shell_content.end(), std::back_inserter(_shell_output));
-
-  decltype(_shell_fetch_callbacks) callbacks;
   {
-    std::lock_guard _{_oplock};
-    callbacks = std::move(_shell_fetch_callbacks);
-  }
-
-  for (const auto& cb : callbacks) {
-    cb(_shell_output_seqn, _shell_output);
+    auto _{std::lock_guard{_shell_output_lock}};
+    _shell_output_seqn  = message->sequence;
+    auto& shell_content = message->shell_content;
+    std::copy(shell_content.begin(), shell_content.end(), std::back_inserter(_shell_output));
   }
 }
 
@@ -188,7 +166,7 @@ std::future<std::string> apiserver::session::post_shell(const std::string& conte
   std::future<std::string> future;
 
   if (is_suggest) {
-    std::lock_guard _{_oplock};
+    std::lock_guard _{_shell_suggest_lock};
     auto [it, is_new] = _shell_suggest_replies.try_emplace(payload.request_id);
 
     if (not is_new)
@@ -211,7 +189,7 @@ void apiserver::session::_handle_shell_suggestion() {
     return;
 
   {
-    lock_guard _{_oplock};
+    lock_guard _{_shell_suggest_lock};
     auto it = _shell_suggest_replies.find(message->request_id);
     if (it == _shell_suggest_replies.end()) {
       SPDLOG_ERROR("LOGIC ERROR: unsent request {} received.", message->request_id);
@@ -225,4 +203,10 @@ void apiserver::session::_handle_shell_suggestion() {
     it->second.second.set_value(builder.dump());
     _shell_suggest_replies.erase(it);
   }
+}
+
+void apiserver::session::request_update() {
+  SPDLOG_DEBUG("{}@{}: sent session fetch request", name(), host());
+  lock_guard _{_write_lock};
+  _data.write(_build_msg(_net::server_message::session_flush_request, {}));
 }

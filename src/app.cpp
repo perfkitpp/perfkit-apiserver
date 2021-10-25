@@ -71,6 +71,7 @@ void apiserver::app::_worker_fn() {
   enum { RECV_BUFLEN = 4096 };
   auto _buf = std::make_unique<char[]>(RECV_BUFLEN);
   spdlog::stopwatch _timer_heartbeat;
+  spdlog::stopwatch _timer_update;
 
   std::vector<::pollfd> _pollees;
   {
@@ -89,7 +90,13 @@ void apiserver::app::_worker_fn() {
   };
 
   while (_active.test_and_set(std::memory_order_relaxed)) {
-    auto n_poll = ::poll(_pollees.data(), _pollees.size(), 1000);
+    if (_timer_update.elapsed() > 0.1s) {
+      _timer_update.reset();
+      for (auto& sess : _sessions)
+        sess->request_update();
+    }
+
+    auto n_poll = ::poll(_pollees.data(), _pollees.size(), 100);
 
     if (n_poll < 0) {
       SPDLOG_CRITICAL("POLL() failed. ({}) {}", errno, strerror(errno));
@@ -191,17 +198,12 @@ std::string apiserver::app::list_sessions() const {
 }
 
 std::string apiserver::app::fetch_shell_output(int64_t session, int64_t sequence) {
-  std::future<std::string> result;
+  std::string result;
   _session_critical_op(
           session,
           [&](class session* sess) { result = sess->fetch_shell(sequence); });
 
-  if (result.wait_for(2s) == std::future_status::timeout) {
-    SPDLOG_WARN("[session {}] fetch shell output failed: timeout", session);
-    return {};
-  }
-
-  return result.get();
+  return result;
 }
 
 std::string apiserver::app::post_shell_input(int64_t session, const std::string& body) {

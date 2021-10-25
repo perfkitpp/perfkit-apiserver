@@ -120,7 +120,6 @@ int main(int argc, char** argv) {
 
   app.port(apiserver::bind_port.value())
           .bindaddr(apiserver::bind_ip.value())
-          .multithreaded()
           .run();
 
   running.store(false);
