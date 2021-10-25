@@ -232,3 +232,11 @@ std::string apiserver::app::post_shell_input(int64_t session, const std::string&
 
   return result.get();
 }
+
+std::string apiserver::app::fetch_config_update(int64_t session, int64_t fence) {
+  std::string result;
+  _session_critical_op(
+          session, [&](auto&& sess) { result = sess->fetch_config_update(fence); });
+
+  return result;
+}

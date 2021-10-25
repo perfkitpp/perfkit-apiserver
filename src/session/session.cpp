@@ -4,6 +4,8 @@
 
 #include "session.hpp"
 
+#include <unordered_set>
+
 #include <perfkit/_net/net-proto.hpp>
 #include <spdlog/spdlog.h>
 
@@ -151,7 +153,7 @@ void apiserver::session::_handle_session_fetch() {
 
   {
     auto _{std::lock_guard{_shell_output_lock}};
-    _shell_output_seqn  = message->shell_sequence;
+    _shell_output_seqn  = message->shell_fence;
     auto& shell_content = message->shell_content;
     std::copy(shell_content.begin(), shell_content.end(), std::back_inserter(_shell_output));
   }
@@ -159,7 +161,7 @@ void apiserver::session::_handle_session_fetch() {
     auto* s = &_state_cfg;
     auto _{std::unique_lock{s->lock}};
 
-    s->fence = message->fence;
+    s->fence = message->config_fence;
 
     for (auto& registry : message->config_registry_new) {
       SPDLOG_INFO("{}@{}: new config registry: {}", name(), host(), registry.name);
@@ -171,8 +173,8 @@ void apiserver::session::_handle_session_fetch() {
       s->updates.emplace(s->fence, entity.hash);
     }
 
-    {  // purge too old updates
-      auto it_old_update = s->updates.lower_bound(s->fence - 30);
+    if (s->updates.size() > 30) {  // purge old updates
+      auto it_old_update = s->updates.lower_bound(s->fence - 10);
       s->updates.erase(s->updates.begin(), it_old_update);
     }
   }
@@ -230,4 +232,68 @@ void apiserver::session::request_update() {
   SPDLOG_DEBUG("{}@{}: sent session fetch request", name(), host());
   lock_guard _{_write_lock};
   _data.write(_build_msg(_net::server_message::session_flush_request, {}));
+}
+
+std::string apiserver::session::fetch_config_update(int64_t fence) {
+  auto* s = &_state_cfg;
+  auto _{std::shared_lock{s->lock}};
+
+  nlohmann::json builder;
+  builder["fence"] = s->fence;
+  if (s->all_values.empty()) { return builder.dump(); }
+
+  auto* js_registries = &builder["registry_new"];
+
+  // find all registries which are registered after 'fence'
+  for (auto it = s->registries.lower_bound(fence);
+       it != s->registries.end();
+       ++it) {
+    auto const& [_unused0, registry] = *it;
+    auto* js_registry                = &js_registries->emplace_back();
+    (*js_registry)["name"]           = it->second.name;
+
+    auto* js_entities = &(*js_registry)["entities"];
+    (*js_entities)[registry.entities.size()];  // reserve array size
+
+    size_t idx = 0;
+    for (auto& entity : registry.entities) {
+      auto* js_entity                   = &(*js_entities)[idx++];
+      (*js_entity)["hash"]              = entity.hash;
+      (*js_entity)["order_key"]         = entity.order_key;
+      (*js_entity)["hierarchical_name"] = entity.display_key;
+      (*js_entity)["metadata"]          = entity.metadata;
+    }
+  }
+
+  // find all configuration updates
+  // if the first update is later than fence, all values should be transferred.
+  bool is_too_old  = not s->updates.empty() && fence < s->updates.begin()->first;
+  auto* js_updates = &builder["updates"];
+
+  if (is_too_old) {
+    (*js_updates)[s->all_values.size()];
+    size_t idx = 0;
+    for (const auto& [_unused, item] : s->all_values)
+      (*js_updates)[idx++] = item;
+  } else {
+    // there can be duplicated updates. to prevent redundant expensive copy,
+    //  merge all deltas firstly.
+    std::unordered_set<int64_t> updated;
+
+    updated.reserve(s->updates.size());
+    std::transform(
+            s->updates.lower_bound(fence), s->updates.end(),
+            std::inserter(updated, updated.begin()),
+            [&](auto&& k) { return k.second; });
+
+    (*js_updates)[updated.size()];
+    std::transform(
+            updated.begin(), updated.end(),
+            js_updates->begin(),
+            [&](int64_t hash) {
+              return std::make_pair(hash, s->all_values[hash]);
+            });
+  }
+
+  return builder.dump();
 }

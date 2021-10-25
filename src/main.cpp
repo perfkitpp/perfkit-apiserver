@@ -47,8 +47,11 @@ int main(int argc, char** argv) {
     term_init.host_port       = *provider::bind_port;
     term_init.host_name       = "127.0.0.1";
 
+    // do not allow the use of file modification commands over network
     term = perfkit::terminal::net_provider::create(term_init);
     perfkit::terminal::register_logging_manip_command(term.get());
+    perfkit::terminal::register_config_manip_command(term.get());
+    perfkit::terminal::register_trace_manip_command(term.get());
   }
   {  // register terminal manipulation
     term_cli = perfkit::terminal::create_cli();
@@ -116,8 +119,12 @@ int main(int argc, char** argv) {
                     return srv_app->post_shell_input(sess_id, req.body);
                   });
 
-  app.loglevel(crow::LogLevel::WARNING);
+  CROW_ROUTE(app, "/config/update/<int>/<int>")
+  ([&](int64_t sess_id, int64_t seqn) {
+    return srv_app->fetch_shell_output(sess_id, seqn);
+  });
 
+  app.loglevel(crow::LogLevel::WARNING);
   app.port(apiserver::bind_port.value())
           .bindaddr(apiserver::bind_ip.value())
           .run();

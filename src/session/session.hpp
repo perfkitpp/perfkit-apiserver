@@ -9,6 +9,7 @@
 #include <future>
 #include <list>
 #include <mutex>
+#include <shared_mutex>
 
 #include <perfkit/_net/net-proto.hpp>
 #include <perfkit/common/array_view.hxx>
@@ -44,6 +45,7 @@ class session {
 
   std::string fetch_shell(size_t req_seqn);
   std::future<std::string> post_shell(std::string const& content, bool is_suggest);
+  std::string fetch_config_update(int64_t fence);
 
   void handle_recv(perfkit::array_view<char> buf);
 
@@ -94,7 +96,7 @@ class session {
   // -- config manips
   struct config_state {
     //
-    std::mutex lock;
+    std::shared_mutex lock;
 
     //
     int64_t fence;
