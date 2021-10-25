@@ -70,15 +70,11 @@ void apiserver::session::_handle_header() {
   _state_proc = [&]() -> decltype(_state_proc) {
     switch (head.type.session) {
       case _net::provider_message::register_session: return [&] { _handle_register(); };
-      case _net::provider_message::shell_flush: return [&] { _handle_shell_fetch(); };
+      case _net::provider_message::session_flush_reply: return [&] { _handle_shell_fetch(); };
       case _net::provider_message::heartbeat: return [] { throw std::bad_function_call{}; };
       case _net::provider_message::shell_suggest: return [&] { _handle_shell_suggestion(); };
 
       default:
-      case _net::provider_message::config_all:
-      case _net::provider_message::config_update:
-      case _net::provider_message::trace_groups:
-      case _net::provider_message::trace_image:
       case _net::provider_message::invalid:
         SPDLOG_WARN("{}@{}: handler not implemented", name(), host());
         throw invalid_session_state{};
@@ -154,7 +150,7 @@ std::future<std::string> apiserver::session::fetch_shell(size_t req_seqn) {
   {
     SPDLOG_DEBUG("{}@{}: sent shell fetch message", name(), host());
     lock_guard _{_write_lock};
-    _data.write(_build_msg(_net::server_message::shell_fetch, {}));
+    _data.write(_build_msg(_net::server_message::shell_flush_request, {}));
   }
 
   return promise->get_future();
@@ -164,12 +160,13 @@ void apiserver::session::_handle_shell_fetch() {
   // 1. retrieve message
   // 2. update sequence & shell output buffer
   // 3. iterate and call all fetch callbacks
-  auto message = _retrieve<_net::shell_flush_chunk>();
+  auto message = _retrieve<_net::session_flush_chunk>();
   if (not message)
     return;
 
-  _shell_output_seqn = message->sequence;
-  std::copy(message->data.begin(), message->data.end(), std::back_inserter(_shell_output));
+  _shell_output_seqn  = message->sequence;
+  auto& shell_content = message->shell_content;
+  std::copy(shell_content.begin(), shell_content.end(), std::back_inserter(_shell_output));
 
   decltype(_shell_fetch_callbacks) callbacks;
   {

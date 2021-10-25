@@ -42,7 +42,7 @@ int main(int argc, char** argv) {
   std::atomic_bool running{true};
 
   {  // initialize net terminal, which will connect to itself.
-    perfkit::terminal::net_provider::init_info term_init{"__SERVER__"};
+    perfkit::terminal::net_provider::init_info term_init{"__MONITORING_SERVER__"};
     term_init.wait_connection = false;
     term_init.host_port       = *provider::bind_port;
     term_init.host_name       = "127.0.0.1";
