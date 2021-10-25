@@ -92,6 +92,23 @@ class session {
           _shell_suggest_replies;
 
   // -- config manips
+  struct config_state {
+    //
+    std::mutex lock;
+
+    //
+    int64_t fence;
+
+    // All instnatiated registries.
+    std::multimap<int64_t /*fence*/, perfkit::_net::config_registry_descriptor> registries;
+
+    // all latest configurations.
+    // this will be sent to the client that who lost too many updates
+    std::unordered_map<int64_t /*hash*/, nlohmann::json> all_values;
+
+    // for optimization purpose, recent updates will be cached.
+    std::multimap<int64_t /*fence*/, int64_t /*hash*/> updates;
+  } _state_cfg;
 
   //
 };

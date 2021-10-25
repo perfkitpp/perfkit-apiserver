@@ -151,9 +151,30 @@ void apiserver::session::_handle_session_fetch() {
 
   {
     auto _{std::lock_guard{_shell_output_lock}};
-    _shell_output_seqn  = message->sequence;
+    _shell_output_seqn  = message->shell_sequence;
     auto& shell_content = message->shell_content;
     std::copy(shell_content.begin(), shell_content.end(), std::back_inserter(_shell_output));
+  }
+  {
+    auto* s = &_state_cfg;
+    auto _{std::unique_lock{s->lock}};
+
+    s->fence = message->fence;
+
+    for (auto& registry : message->config_registry_new) {
+      SPDLOG_INFO("{}@{}: new config registry: {}", name(), host(), registry.name);
+      s->registries.emplace(s->fence, std::move(registry));
+    }
+
+    for (auto& entity : message->config_updates) {
+      s->all_values[entity.hash] = entity.data;
+      s->updates.emplace(s->fence, entity.hash);
+    }
+
+    {  // purge too old updates
+      auto it_old_update = s->updates.lower_bound(s->fence - 30);
+      s->updates.erase(s->updates.begin(), it_old_update);
+    }
   }
 }
 
