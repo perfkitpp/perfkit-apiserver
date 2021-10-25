@@ -253,7 +253,10 @@ std::string apiserver::session::fetch_config_update(int64_t fence) {
     (*js_registry)["name"]           = it->second.name;
 
     auto* js_entities = &(*js_registry)["entities"];
-    (*js_entities)[registry.entities.size()];  // reserve array size
+    if (registry.entities.empty())
+      continue;  // if there's no entities...
+
+    (*js_entities)[registry.entities.size() - 1];  // reserve array size
 
     size_t idx = 0;
     for (auto& entity : registry.entities) {
@@ -271,10 +274,10 @@ std::string apiserver::session::fetch_config_update(int64_t fence) {
   auto* js_updates = &builder["updates"];
 
   if (is_too_old) {
-    (*js_updates)[s->all_values.size()];
+    (*js_updates)[s->all_values.size() - 1];
     size_t idx = 0;
-    for (const auto& [_unused, item] : s->all_values)
-      (*js_updates)[idx++] = item;
+    for (const auto& pair : s->all_values)
+      (*js_updates)[idx++] = pair;
   } else {
     // there can be duplicated updates. to prevent redundant expensive copy,
     //  merge all deltas firstly.
@@ -286,7 +289,9 @@ std::string apiserver::session::fetch_config_update(int64_t fence) {
             std::inserter(updated, updated.begin()),
             [&](auto&& k) { return k.second; });
 
-    (*js_updates)[updated.size()];
+    if (not updated.empty())
+      (*js_updates)[updated.size() - 1];
+
     std::transform(
             updated.begin(), updated.end(),
             js_updates->begin(),

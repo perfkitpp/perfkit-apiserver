@@ -121,7 +121,7 @@ int main(int argc, char** argv) {
 
   CROW_ROUTE(app, "/config/update/<int>/<int>")
   ([&](int64_t sess_id, int64_t seqn) {
-    return srv_app->fetch_shell_output(sess_id, seqn);
+    return srv_app->fetch_config_update(sess_id, seqn);
   });
 
   app.loglevel(crow::LogLevel::WARNING);
