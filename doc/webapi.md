@@ -74,60 +74,35 @@ Login to API server. It'll return an auth token.
 }
 ```
 
-### `GET /config/all/<net_session>`
+### `GET /config/update/<net_session>/<fence>`
 
-- Response
+--- Reply
 
 ```json
 {
-  "category-root": {
-    "name": "root",
-    "categories": [
-      {
-        "name": "sub1",
-        "categories": [
-          {
-            "name": "entity1",
-            "type": "string|object|number_int|number_float|array|object",
-            "description": "description of this entity",
-            "attribute": {
-              "min": "some-minimal-value",
-              "one-of": "some-table-entities",
-              "max": "some-max-value"
-            }
+  "fence": "integer; update fence",
+  "registry_new": [
+    {
+      "name": "string; name of registry",
+      "entities": [
+        {
+          "hash": "integer; 64bit hash to identify this entity.",
+          "order_key": "string; a key that can be used order configurations in same category",
+          "hierarchical_name": "string; a key which represents configuration hierarchy by '|' character."
+          "metadata": {
+            "...": "..."
           }
-        ]
-      }
-    ]
-  }
-}
-```
-
-### `PATCH /config/<net_session>/<hash>`
-
-Target can be an object.
-
-```json
-{
-  "value": "new-value"
-}
-```
-
-### `GET /config/patch/<net_session>/<last-sequence-id>`
-
-- Updates: `[[HASH, VALUE], [...]]`
-
-```json
-{
-  "sequence": 141,
+        }
+      ]
+    },
+    {
+      "...": "..."
+    }
+  ],
   "updates": [
     [
-      13948171,
-      1515
-    ],
-    [
-      3148811,
-      "updated value"
+      "integer; 64bit hash to identify this entity",
+      "object; corresponding updated value for this entity"
     ]
   ]
 }
