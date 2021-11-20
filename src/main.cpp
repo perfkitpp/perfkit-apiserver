@@ -13,21 +13,21 @@ using namespace std::literals;
 
 PERFKIT_CATEGORY(apiserver) {
   PERFKIT_CONFIGURE(bind_ip, "0.0.0.0")
-          .make_flag(true, "apiserver-bind-ip")
+          .flags("apiserver-bind-ip")
           .confirm();
 
   PERFKIT_CONFIGURE(bind_port, 15572)
-          .make_flag(true, "apiserver-bind-port")
+          .flags("apiserver-bind-port")
           .confirm();
 }
 
 PERFKIT_CATEGORY(provider) {
   PERFKIT_CONFIGURE(bind_ip, "0.0.0.0")
-          .make_flag(true, "provider-bind-ip")
+          .flags("provider-bind-ip")
           .confirm();
 
   PERFKIT_CONFIGURE(bind_port, 25572)
-          .make_flag(true, "provider-bind-port")
+          .flags("provider-bind-port")
           .confirm();
 }
 

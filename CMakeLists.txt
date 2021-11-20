@@ -25,15 +25,15 @@ endif ()
 # ============== CONFIGURE OPENSSL
 if (OPENSSL_FOUND)
     include_directories(${OPENSSL_INCLUDE_DIR})
-endif()
+endif ()
 
 # ============== CONFIGURE BOOST
 if (MSVC)
     set(Boost_USE_STATIC_LIBS "On")
-    find_package( Boost 1.70 COMPONENTS system thread regex REQUIRED )
-else()
-    find_package( Boost 1.70 COMPONENTS system thread REQUIRED )
-endif()
+    find_package(Boost 1.70 COMPONENTS system thread regex REQUIRED)
+else ()
+    find_package(Boost 1.70 COMPONENTS system thread REQUIRED)
+endif ()
 
 # ============== ADD TARGETS
 add_subdirectory(src)
