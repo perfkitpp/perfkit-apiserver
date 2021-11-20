@@ -3,8 +3,7 @@ add_executable(
         main.cpp
         crow_body.cpp
         middlewares/auth.cpp
-        middlewares/auth.hpp
-        app.cpp app.hpp session/session.cpp session/session.hpp)
+)
 
 # ============== CONFIGURE TARGET
 target_include_directories(
