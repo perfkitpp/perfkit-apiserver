@@ -108,6 +108,11 @@ Login to API server. It'll return an auth token.
 }
 ```
 
+### `POST /config/set/<net_session>/<hash>`
+
+--- Request
+
+
 ### `GET /trace/list/<net_session>`
 
 ```json

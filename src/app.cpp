@@ -8,6 +8,7 @@
 
 #include <nlohmann/json.hpp>
 #include <perfkit/common/format.hxx>
+#include <perfkit/configs.h>
 #include <range/v3/view/drop.hpp>
 #include <range/v3/view/iota.hpp>
 #include <spdlog/spdlog.h>
@@ -29,6 +30,16 @@ using pollfd_ty = pollfd;
 #include <process.h>
 
 #endif
+
+PERFKIT_FORWARD_ROOT_CATEGORY(networking) {
+  PERFKIT_SUBCATEGORY(memory) {
+    PERFKIT_CONFIGURE(receive_buffer_size, 4096).confirm();
+  }
+
+  PERFKIT_SUBCATEGORY(optimization) {
+    PERFKIT_CONFIGURE(update_period, 0.1).confirm();
+  }
+}
 
 using namespace std::literals;
 using namespace perfkit::literals;
@@ -68,8 +79,8 @@ apiserver::app::~app() {
 }
 
 void apiserver::app::_worker_fn() {
-  enum { RECV_BUFLEN = 4096 };
-  auto _buf = std::make_unique<char[]>(RECV_BUFLEN);
+  const int RECV_BUFLEN = networking::memory::receive_buffer_size;
+  auto _buf             = std::make_unique<char[]>(RECV_BUFLEN);
   spdlog::stopwatch _timer_heartbeat;
   spdlog::stopwatch _timer_update;
 
@@ -90,13 +101,14 @@ void apiserver::app::_worker_fn() {
   };
 
   while (_active.test_and_set(std::memory_order_relaxed)) {
-    if (_timer_update.elapsed() > 0.1s) {
+    auto update_period = 1.s * networking::optimization::update_period;
+    if (_timer_update.elapsed() > update_period) {
       _timer_update.reset();
       for (auto& sess : _sessions)
         sess->request_update();
     }
 
-    auto n_poll = ::poll(_pollees.data(), _pollees.size(), 100);
+    auto n_poll = ::poll(_pollees.data(), _pollees.size(), update_period.count() * 1000);
 
     if (n_poll < 0) {
       SPDLOG_CRITICAL("POLL() failed. ({}) {}", errno, strerror(errno));
@@ -166,12 +178,12 @@ void apiserver::app::_worker_fn() {
       pfd->revents = {};
     }
 
-    if (_timer_heartbeat.elapsed() > 3s) {
-      _timer_heartbeat.reset();
-      for (const auto& sess : _sessions) {
-        sess->heartbeat();
-      }
-    }
+    //    if (_timer_heartbeat.elapsed() > 3s) {
+    //      _timer_heartbeat.reset();
+    //      for (const auto& sess : _sessions) {
+    //        sess->heartbeat();
+    //      }
+    //    }
   }
 
   SPDLOG_INFO("worker thread shutting down ...");

@@ -32,13 +32,15 @@ PERFKIT_CATEGORY(provider) {
           .confirm();
 }
 
+PERFKIT_CATEGORY(networking) {}
+
 int main(int argc, char** argv) {
   perfkit::configs::parse_args(&argc, &argv, true);
   crow::App<middleware::auth> app;
   std::unique_ptr<apiserver::app> srv_app;
   perfkit::terminal_ptr term;
   perfkit::terminal_ptr term_cli;
-  std::thread thrd_term_cli;
+  std::thread thrd_terminal;
   std::atomic_bool running{true};
 
   {  // initialize net terminal, which will connect to itself.
@@ -58,9 +60,10 @@ int main(int argc, char** argv) {
     perfkit::terminal::initialize_with_basic_commands(term_cli.get());
     term_cli->commands()->root()->add_subcommand(
             "quit", [&](auto&&) { return app.stop(), (running = false), true; });
-    thrd_term_cli = std::thread{
+    thrd_terminal = std::thread{
             [&] {
               while (running.load(std::memory_order_relaxed)) {
+                networking::update();
                 auto cmd = term_cli->fetch_command(10ms);
                 if (cmd && not cmd->empty())
                   term_cli->commands()->invoke_command(*cmd);
@@ -130,7 +133,7 @@ int main(int argc, char** argv) {
           .run();
 
   running.store(false);
-  if (thrd_term_cli.joinable()) { thrd_term_cli.join(); }
+  if (thrd_terminal.joinable()) { thrd_terminal.join(); }
   srv_app.reset();
 
   return 0;
