@@ -1,5 +1,59 @@
 # Perfkit API Server
 
+```text
+          -  xxxx   xxxxx  xxxx     xxxxxx  xx  xx   xxxx xxxxxx
+         -  xx  xx xx     xx  xx   xx      xx  xx    xx    xx
+        -  xxxxxx xxxxx  xx xx    xxxxx   xx xx     xx    xx
+       -  xx     xx     xx  xx   xx      xx   x    xx    xx
+      -  xx     xxxxxx xx    xx xx      xx    xx xxxx   xx
+    ───────────────────────────────────────────────────────────
+
+   <FRONTEND>
+
+  ┌────────────────┬─┬┬─────────────────────┐
+  │PERFKIT         │ ││ Session List Viewer ├─────────────────────────────────┐
+  │ Client Instance│ └┴─────────────────────┘                                 │
+  └────────────────┤                                                          │
+                   └─┬┬────────────────┐                                      │
+                     ││ Session Viewer │                                      │
+                     └┴───▲────────────┘                                      │
+                          │              ┌───────────────┐                    │
+                          │              │ <<interface>> │    <<impl>>        │
+                          ├──────<<by>>──┤  bytestream   ◄──┬───────┐         │
+                          │              └───────────────┘  │       │         │
+   <BACKEND>              │                                 │       │         │
+                       ┌──▼───────────────────────┐  ┌──────┴───┐ ┌─┴───────┐ │
+                       │   <<interface>>          │  │tcp client│ │websocket│ │
+                       │    session management    │  └──┬───────┘ │ client  │ │
+                       │     bytestrem protocol   │     │         └─┬───────┘ │
+   ┌────────────────┐  └▲─────────────────────────┘     │           │         │
+   │    perfkit     │   │                               │           │         │
+   │    instance    │   │                               │           │         │
+   ├────────────────┘   │<<impl>>                       │           │         │
+   │                    │                               │           │         │
+   │                    │                               │           │         │
+   ├┬──────────────────┬┘                               │           │         │
+   ││  tcp socket      │                                │           │         │
+   ││  session server  │◄───────────────────────────────┘           │         │
+   └┴──────▲───────────┘                                            │         │
+           │                                                        │         │
+           │                                                        │         │
+           │    ┌────────────┐                                      │         │
+           └────┤ perfkit    │    ┌─────────────────────────────────┘         │
+                │  apiserver │    │                                           │
+                └────────┬───┘    │                                           │
+                         │        │                                           │
+                         ├┬───────▼───┐                                       │
+                         ││ websocket │                                       │
+                         ││  server   │                                       │
+                         ├┴───────────┘                                       │
+                         │                                                    │
+                         ├┬─────────────┐                                     │
+                         ││ RESTful     ◄─────────────────────────────────────┘
+                         ││   API server│
+                         └┴─────────────┘
+```
+
 ## Mechanism
 
 - Sequence IDs: Used to identify to find if request result is cached in API server. Otherwise, the request will be
@@ -16,7 +70,8 @@
 
 ## Progress: WebAPI
 
-[List of APIs](doc/webapi.md)
+[List of APIs](doc/api.md)
+[List of WEBAPIs](doc/webapi.md)
 
 - [ ] Authentication
 - [ ] Session Browse API
